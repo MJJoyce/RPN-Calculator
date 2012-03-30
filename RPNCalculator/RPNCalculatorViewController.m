@@ -7,54 +7,58 @@
 //
 
 #import "RPNCalculatorViewController.h"
+#import "CalculatorBrain.h"
+
+@interface RPNCalculatorViewController()
+
+@property (nonatomic) BOOL enteringNum;
+@property (nonatomic, strong) CalculatorBrain *brain;
+
+@end
 
 @implementation RPNCalculatorViewController
 
-- (void)didReceiveMemoryWarning
+@synthesize display;
+@synthesize enteringNum;
+@synthesize brain = _brain;
+
+- (CalculatorBrain *)brain
 {
-    [super didReceiveMemoryWarning];
-    // Release any cached data, images, etc that aren't in use.
+    if (!_brain) _brain = [[CalculatorBrain alloc] init];
+    return _brain;
 }
 
-#pragma mark - View lifecycle
-
-- (void)viewDidLoad
+- (IBAction)digitPressed:(UIButton *)sender 
 {
-    [super viewDidLoad];
-	// Do any additional setup after loading the view, typically from a nib.
+    NSString *digit = [sender currentTitle];
+    if (enteringNum)
+    {
+        self.display.text = [self.display.text stringByAppendingString:digit];
+    }
+    else
+    {
+        self.display.text = digit;
+        enteringNum = YES;
+    }
 }
 
-- (void)viewDidUnload
+- (IBAction)enterPressed 
 {
-    [super viewDidUnload];
-    // Release any retained subviews of the main view.
-    // e.g. self.myOutlet = nil;
+    [self.brain pushOperand:[self.display.text doubleValue]];
+    self.enteringNum = NO;
 }
 
-- (void)viewWillAppear:(BOOL)animated
-{
-    [super viewWillAppear:animated];
-}
 
-- (void)viewDidAppear:(BOOL)animated
+- (IBAction)operatorPressed:(UIButton *)sender 
 {
-    [super viewDidAppear:animated];
-}
-
-- (void)viewWillDisappear:(BOOL)animated
-{
-	[super viewWillDisappear:animated];
-}
-
-- (void)viewDidDisappear:(BOOL)animated
-{
-	[super viewDidDisappear:animated];
-}
-
-- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
-{
-    // Return YES for supported orientations
-    return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
+    if (enteringNum)
+    {
+        [self enterPressed];
+    }
+    
+    NSString *operation = [sender currentTitle];
+    double result = [self.brain performOperation:operation];
+    self.display.text = [NSString stringWithFormat:@"%g", result];
 }
 
 @end
