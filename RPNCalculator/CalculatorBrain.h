@@ -13,5 +13,6 @@
 - (double)popOperand;
 - (void)pushOperand:(double)operand;
 - (double)performOperation:(NSString *)operation;
+- (void)clearState;
 
 @end

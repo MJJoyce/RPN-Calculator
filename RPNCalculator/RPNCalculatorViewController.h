@@ -10,6 +10,9 @@
 
 @interface RPNCalculatorViewController : UIViewController
 
+// The UILabel where the currently entered number or result is displayed
 @property (weak, nonatomic) IBOutlet UILabel *display;
 
+// The UILabel that keeps track of buttons pressed on the calculator
+@property (weak, nonatomic) IBOutlet UILabel *history;  
 @end
