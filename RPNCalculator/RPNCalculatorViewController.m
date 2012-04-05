@@ -18,10 +18,10 @@
 
 @implementation RPNCalculatorViewController
 
-@synthesize display;
-@synthesize enteringNum;
+@synthesize display = _display;
+@synthesize enteringNum = _enteringNum;
 @synthesize brain = _brain;
-@synthesize history;
+@synthesize history = _history;
 
 - (CalculatorBrain *)brain
 {
@@ -70,7 +70,7 @@
 
 - (IBAction)operatorPressed:(UIButton *)sender 
 {
-    if (enteringNum)
+    if (self.enteringNum)
     {
         [self enterPressed];
     }
