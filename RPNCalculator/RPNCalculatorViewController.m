@@ -46,6 +46,20 @@
     }
 }
 
+- (IBAction)backspacePressed 
+{
+    self.display.text = [self.display.text substringToIndex:[self.display.text length] - 1];
+    
+    // If the input was completely deleted or if just a negative is left, then...
+    if (([self.display.text length] == 0) || [self.display.text isEqualToString:@"-"])
+    {
+        self.display.text = [self.display.text stringByAppendingString:@"0"];
+        self.display.text = [self.display.text stringByReplacingOccurrencesOfString:@"-" withString:@""];
+        self.enteringNum = NO;
+
+    }
+}
+
 - (IBAction)digitPressed:(UIButton *)sender 
 {
     NSString *digit = [sender currentTitle];
@@ -55,6 +69,7 @@
     }
     else
     {
+        self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
         self.display.text = digit;
         self.enteringNum = YES;
     }
@@ -64,9 +79,9 @@
 {
     [self.brain pushOperand:[self.display.text doubleValue]];
     self.enteringNum = NO;
+    self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
     self.history.text = [self.history.text stringByAppendingString:[NSString stringWithFormat:@"%@ ", self.display.text]];
 }
-
 
 - (IBAction)operatorPressed:(UIButton *)sender 
 {
@@ -76,9 +91,33 @@
     }
     
     NSString *operation = [sender currentTitle];
-    self.history.text = [self.history.text stringByAppendingString:[NSString stringWithFormat:@"%@ ", operation]]; //stringByAppendingString:operation];
+    
+    // Need to remove previously added '=' to ensure that the user can push multiple operators in a row with the correct results displayed.
+    self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
+    self.history.text = [self.history.text stringByAppendingString:[NSString stringWithFormat:@"%@ = ", operation]];
     double result = [self.brain performOperation:operation];
     self.display.text = [NSString stringWithFormat:@"%g", result];
+}
+
+- (IBAction)negativePressed:(UIButton *)sender 
+{
+    if (self.enteringNum)
+    {
+        // If the current number being entered is negative
+        if ([self.display.text rangeOfString:@"-"].location != NSNotFound)
+        {
+            self.display.text = [self.display.text stringByReplacingOccurrencesOfString:@"-" withString:@""];
+        }
+        // Otherwise, add the negation
+        else
+        {
+            self.display.text = [@"-" stringByAppendingString:self.display.text];
+        }
+    }
+    else
+    {
+        [self operatorPressed:sender];
+    }
 }
 
 - (IBAction)clearPressed 

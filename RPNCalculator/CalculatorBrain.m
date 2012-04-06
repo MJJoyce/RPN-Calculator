@@ -74,6 +74,14 @@
     {
         result = sqrt([self popOperand]);
     }
+    else if ([operation isEqualToString:@"log"])
+    {
+        result = log([self popOperand]);
+    }
+    else if ([operation isEqualToString:@"+/-"])
+    {
+        result = [self popOperand] * (-1.0);
+    }
     
     [self pushOperand:result];
     
