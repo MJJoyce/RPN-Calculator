@@ -62,6 +62,10 @@
     {
         result = 3.14159265;
     }
+    else if ([operation isEqualToString:@"e"])
+    {
+        result = 2.71828;
+    }
     else if ([operation isEqualToString:@"sin"])
     {
         result = sin([self popOperand]);
