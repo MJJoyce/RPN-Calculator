@@ -19,8 +19,15 @@
 
 @property (nonatomic, readonly) id program;
 
+- (double)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues;
+- (void)pushVariable:(NSString *)variable;
+- (void)pushOperator:(NSString *)op;
+- (void)popProgramStack;
+
 + (double)popOperand:(NSMutableArray *)stack;
 + (NSString *)descriptionOfProgram:(id)program;
++ (NSSet *)variablesUsedInProgram:(id)program;
 + (double)runProgram:(id)program;
++ (double)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues;
 
 @end

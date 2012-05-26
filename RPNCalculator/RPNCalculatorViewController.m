@@ -11,8 +11,12 @@
 
 @interface RPNCalculatorViewController()
 
-@property (nonatomic) BOOL enteringNum;                 // Flag that dictates whether a number is being enterered
-@property (nonatomic, strong) CalculatorBrain *brain;   
+@property (nonatomic) BOOL enteringNum;
+@property (nonatomic, strong) CalculatorBrain *brain;
+// Dictionary for holding the values of the variables
+@property (strong, nonatomic) NSMutableDictionary* variables;
+
+- (void)updateVariableDisplay:(NSDictionary *)variables;
 
 @end
 
@@ -22,11 +26,19 @@
 @synthesize enteringNum = _enteringNum;
 @synthesize brain = _brain;
 @synthesize history = _history;
+@synthesize varDisplay = _varDisplay;
+@synthesize  variables = _variables;
 
 - (CalculatorBrain *)brain
 {
     if (!_brain) _brain = [[CalculatorBrain alloc] init];
     return _brain;
+}
+
+-(NSDictionary* )variables
+{
+    if (!_variables) _variables = [[NSMutableDictionary alloc] init];
+    return _variables;
 }
 
 - (IBAction)decimalPressed 
@@ -48,16 +60,33 @@
 
 - (IBAction)backspacePressed 
 {
-    self.display.text = [self.display.text substringToIndex:[self.display.text length] - 1];
-    
-    // If the input was completely deleted or if just a negative is left, then...
-    if (([self.display.text length] == 0) || [self.display.text isEqualToString:@"-"])
+    // When the user is entering a number, backspace should delete characters from the display.
+    if (self.enteringNum)
     {
-        self.display.text = [self.display.text stringByAppendingString:@"0"];
-        self.display.text = [self.display.text stringByReplacingOccurrencesOfString:@"-" withString:@""];
-        self.enteringNum = NO;
-
+        self.display.text = [self.display.text substringToIndex:[self.display.text length] - 1];
+          
+        // If the user deleted everything from the display...
+        if (([self.display.text length] == 0) || [self.display.text isEqualToString:@"-"])
+        {
+            self.enteringNum = NO;
+        }
     }
+    // Remove the top item from the stack if the user isn't entering a number
+    else
+    {
+        [self.brain popProgramStack];
+    }
+    
+    // If not entering a number, the display should hold the result of running the current program
+    if (self.enteringNum == NO)
+    {
+        double tmp = [[self.brain class] runProgram:self.brain.program usingVariableValues:self.variables];
+        self.display.text = @"0";
+        if (tmp)
+            self.display.text = [@"" stringByAppendingFormat:@"%g", tmp];
+    }
+        
+    self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
 }
 
 - (IBAction)digitPressed:(UIButton *)sender 
@@ -69,7 +98,6 @@
     }
     else
     {
-        self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
         self.display.text = digit;
         self.enteringNum = YES;
     }
@@ -79,8 +107,7 @@
 {
     [self.brain pushOperand:[self.display.text doubleValue]];
     self.enteringNum = NO;
-    self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
-    self.history.text = [self.history.text stringByAppendingString:[NSString stringWithFormat:@"%@ ", self.display.text]];
+    self.history.text = [[self.brain class] descriptionOfProgram:[self.brain.program mutableCopy]];
 }
 
 - (IBAction)operatorPressed:(UIButton *)sender 
@@ -90,12 +117,10 @@
         [self enterPressed];
     }
     
-    NSString *operation = [sender currentTitle];
-    
-    // Need to remove previously added '=' to ensure that the user can push multiple operators in a row with the correct results displayed.
-    self.history.text = [self.history.text stringByReplacingOccurrencesOfString:@"= " withString:@""];
-    self.history.text = [self.history.text stringByAppendingString:[NSString stringWithFormat:@"%@ = ", operation]];
-    double result = [self.brain performOperation:operation];
+    // Push the operator and update the HUD by running the current program
+    [self.brain pushOperator:[sender currentTitle]];
+    self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
+    double result = [[self.brain class] runProgram:self.brain.program usingVariableValues:self.variables];
     self.display.text = [NSString stringWithFormat:@"%g", result];
 }
 
@@ -126,13 +151,64 @@
     self.enteringNum = NO;
     self.history.text = @"";
     self.display.text = @"0";
+    self.variables = nil;
+    self.varDisplay.text = @"";
 }
 
-/* This was automatically entered by the IDE. Don't know if it is needed
-- (void)viewDidUnload {
-    [self setHistory:nil];
-    [self setHistory:nil];
-    [super viewDidUnload];
+- (IBAction)variablePressed:(UIButton *)sender 
+{
+    if (!self.enteringNum)
+    {
+        NSString* button = [sender currentTitle];
+        
+        // If there is a value stored for the button that was pressed...
+        if ([self.variables objectForKey:button])
+        {
+            // Push the variable to the program and update the history display.
+            [self.brain pushVariable:button];
+            self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
+        }
+        // Else there wasn't a value stored for the variable...
+        else 
+        {
+            // Use the current top of the stack as the value.
+            NSNumber* value = [[NSNumber alloc] initWithDouble:[self.display.text doubleValue]];
+            [self.variables setObject:value forKey:button];
+            [self updateVariableDisplay:[self.variables copy]];
+        }
+    }
 }
- */
+
+- (IBAction)insertTestVars:(UIButton *)sender 
+{
+    NSString* text = [sender currentTitle];
+    
+    if ([text isEqualToString:@"Test Vars 1"])
+    {
+        NSDictionary* tmp = [NSDictionary dictionaryWithObjectsAndKeys:[[NSNumber alloc] initWithInt:5], @"x", [[NSNumber alloc] initWithDouble:10.5], @"y", nil];
+        self.variables = [tmp mutableCopy];
+    }
+    else // Test Vars 2 pressed
+    {
+        // Just setting this to nil for testing purposes per homework instructions.
+        self.variables = nil;
+    }
+    
+    // Update the UI after changing the variable values.
+    [self updateVariableDisplay:self.variables];
+    double result = [[self.brain class] runProgram:self.brain.program usingVariableValues:self.variables];
+    self.display.text = [@"" stringByAppendingFormat:@"%g", result];
+    self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
+
+}
+
+- (void)updateVariableDisplay:(NSDictionary *)variables
+{
+    self.varDisplay.text = @"";
+    
+    for (id obj in [variables allKeys])
+    {
+        self.varDisplay.text = [self.varDisplay.text stringByAppendingFormat:@"%@ = %@ ", obj, [variables objectForKey:obj]];
+    }
+}
 @end

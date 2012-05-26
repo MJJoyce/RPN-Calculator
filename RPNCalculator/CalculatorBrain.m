@@ -11,6 +11,13 @@
 
 @interface CalculatorBrain()
 @property (nonatomic, strong) NSMutableArray *programStack;
+
++ (NSMutableArray *)substituteVariableValues:(NSDictionary *)variableValues inProgram:(NSMutableArray *)program;
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)program;
++ (BOOL)isOperator:(NSString *)inputString;
++ (BOOL)isSingleOperandOp:(NSString *)op;
++ (BOOL)isMultiOperandOp:(NSString *)op;
+
 @end
 
 @implementation CalculatorBrain
@@ -30,7 +37,66 @@
 
 + (NSString *)descriptionOfProgram:(id)program
 {
-    return @"IMPLEMENT FOR HOMEWORK 2";
+    NSMutableArray* progStack;
+    if ([program isKindOfClass:[NSArray class]]) progStack = [program mutableCopy];
+    else if ([program isKindOfClass:[NSMutableArray class]]) progStack = program;
+
+    // Ensure there is something on the stack to process...
+    id topOfStack = [progStack lastObject];
+    NSString* retString = @"";
+    if (topOfStack)
+        retString = [[self class] descriptionOfTopOfStack:progStack];
+    
+    // If there is still content on the stack, then process it as separate from the last expression
+    if ([progStack lastObject])
+    {
+        NSString* rest = [[self class] descriptionOfProgram:progStack];
+        retString = [rest stringByAppendingFormat:@", %@", retString];
+    }
+    
+    return retString;
+}
+
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)program
+{
+    NSString* retString;
+    id topOfStack = [program lastObject];
+    if (topOfStack) [program removeLastObject];
+    
+    // If the top of the stack is a string and an operator
+    if ([topOfStack isKindOfClass:[NSString class]] && [[self class] isOperator:topOfStack])
+    {
+        // Single operand ops use function notation such as sin(5 + 1)
+        if ([[self class] isSingleOperandOp:topOfStack])
+        {
+            NSString* stmt = [[self class] descriptionOfTopOfStack:program];
+            retString = [@"" stringByAppendingFormat:@"%@(%@)", topOfStack, stmt];
+        }
+        // Binary Operations include +, -, /, *
+        else if ([[self class] isMultiOperandOp:topOfStack])
+        {
+            NSString* rStmt = [[self class] descriptionOfTopOfStack:program];
+            NSString* lStmt = @"0";
+            
+            if ([program lastObject])
+            {
+                lStmt = [[self class] descriptionOfTopOfStack:program];
+            }
+            retString = [@"" stringByAppendingFormat:@"(%@ %@ %@)", lStmt, topOfStack, rStmt];
+        }
+        // It is a single operand operator (like PI) or a variable
+        else 
+        {
+            retString = [@"" stringByAppendingFormat:@"%@", topOfStack];
+        }
+    }
+    // If it isn't an NSString, then it must be a NSNumber
+    else 
+    {
+        retString = [@"" stringByAppendingFormat:@"%@", topOfStack];
+    }
+    
+    return retString;
 }
 
 - (void)pushOperand:(double)operand
@@ -44,8 +110,14 @@
     return [[self class] runProgram:self.programStack];
 }
 
-+ (double)popOperand:(NSMutableArray *)stack
+- (double)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues
 {
+    [self.programStack addObject:operation];
+    return [[self class] runProgram:self.programStack usingVariableValues:variableValues];
+}
+
++ (double)popOperand:(NSMutableArray *)stack
+{   
     double result = 0;
     id topOfStack = [stack lastObject];
     if (topOfStack) [stack removeLastObject];
@@ -87,15 +159,119 @@
 
     return result;
 }
+
++ (BOOL)isOperator:(NSString *)inputString
+{
+    BOOL isOperator = false;
+    
+    if ([inputString isEqualToString:@"+"] || [inputString isEqualToString:@"-"] || [inputString isEqualToString:@"*"] || [inputString isEqualToString:@"/"] || [inputString isEqualToString:@"∏"] || [inputString isEqualToString:@"e"] || [inputString isEqualToString:@"sin"] || [inputString isEqualToString:@"cos"] || [inputString isEqualToString:@"sqrt"] || [inputString isEqualToString:@"log"] || [inputString isEqualToString:@"+/-"])
+    {
+        isOperator = true;
+    }
+    
+    return isOperator;
+}
+
++ (BOOL)isSingleOperandOp:(NSString *)op
+{
+    BOOL isSingleOperandOp = false;
+    
+    if ([op isEqualToString:@"sin"] || [op isEqualToString:@"cos"] || [op isEqualToString:@"sqrt"] || [op isEqualToString:@"log"])
+    {
+        isSingleOperandOp = true;
+    }
+    
+    return isSingleOperandOp;
+}
+
++ (BOOL)isMultiOperandOp:(NSString *)op
+{    
+    BOOL isMultiOperandOp = false;
+    
+    if ([op isEqualToString:@"+"] || [op isEqualToString:@"-"] || [op isEqualToString:@"*"] || [op isEqualToString:@"/"])
+    {
+        isMultiOperandOp = true;
+    }
+    
+    return isMultiOperandOp;
+}
+
++ (NSMutableArray *)substituteVariableValues:(NSDictionary *)variableValues inProgram:(NSMutableArray *)program
+{
+    NSUInteger i;
+    for (i = 0; i < [program count]; i++) 
+    {
+        if ([[program objectAtIndex:i] isKindOfClass:[NSString class]] && ![self isOperator:[program objectAtIndex:i]])
+        {
+            NSString* topOfStack = [program objectAtIndex:i];
+            
+            if ([variableValues objectForKey:topOfStack])
+            {
+                [program replaceObjectAtIndex:i withObject:[variableValues objectForKey:topOfStack]];
+            }
+            else
+            {
+                [program replaceObjectAtIndex:i withObject:[[NSNumber alloc] initWithDouble:0]];
+            }
+        }
+    }
+    
+    return program;
+}
+
++ (NSSet *)variablesUsedInProgram:(id)program
+{
+    NSMutableSet* variablesUsed = nil;
+    
+    for (id obj in program)
+    {
+        if ([obj isKindOfClass:[NSString class]] && ![[self class] isOperator:obj])
+        {
+            if (!variablesUsed) variablesUsed = [[NSMutableSet alloc] init];
+            [variablesUsed addObject:obj];
+        }
+    }
+    
+    return [variablesUsed copy];
+}
     
 + (double)runProgram:(id)program
 {
-    NSMutableArray *stack;
+    NSMutableArray* stack;
     if ([program isKindOfClass:[NSArray class]])
     {
         stack = [program mutableCopy];
     }
+    stack = [self substituteVariableValues:nil inProgram:stack];
     return [self popOperand:stack];
+}
+
++ (double)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues
+{
+    NSMutableArray* stack;
+    if ([program isKindOfClass:[NSArray class]])
+    {
+        stack = [program mutableCopy];
+    }
+    stack = [self substituteVariableValues:variableValues inProgram:stack];
+    
+    return [self popOperand:stack];
+}
+
+- (void)pushVariable:(NSString *)variable
+{
+    [self.programStack addObject:variable];
+}
+
+- (void)pushOperator:(NSString *)op
+{
+    [self.programStack addObject:op];
+}
+
+- (void)popProgramStack
+{
+    id tmp = [self.programStack lastObject];
+    if (tmp) [self.programStack removeLastObject];
 }
 
 -(void)clearState
