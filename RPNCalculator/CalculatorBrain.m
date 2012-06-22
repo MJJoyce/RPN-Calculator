@@ -218,22 +218,6 @@
     
     return program;
 }
-
-+ (NSSet *)variablesUsedInProgram:(id)program
-{
-    NSMutableSet* variablesUsed = nil;
-    
-    for (id obj in program)
-    {
-        if ([obj isKindOfClass:[NSString class]] && ![[self class] isOperator:obj])
-        {
-            if (!variablesUsed) variablesUsed = [[NSMutableSet alloc] init];
-            [variablesUsed addObject:obj];
-        }
-    }
-    
-    return [variablesUsed copy];
-}
     
 + (double)runProgram:(id)program
 {
@@ -254,7 +238,7 @@
         stack = [program mutableCopy];
     }
     stack = [self substituteVariableValues:variableValues inProgram:stack];
-    
+        
     return [self popOperand:stack];
 }
 

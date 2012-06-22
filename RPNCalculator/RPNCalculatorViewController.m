@@ -8,15 +8,13 @@
 
 #import "RPNCalculatorViewController.h"
 #import "CalculatorBrain.h"
+#import "GraphViewController.h"
 
 @interface RPNCalculatorViewController()
 
 @property (nonatomic) BOOL enteringNum;
 @property (nonatomic, strong) CalculatorBrain *brain;
-// Dictionary for holding the values of the variables
 @property (strong, nonatomic) NSMutableDictionary* variables;
-
-- (void)updateVariableDisplay:(NSDictionary *)variables;
 
 @end
 
@@ -26,7 +24,6 @@
 @synthesize enteringNum = _enteringNum;
 @synthesize brain = _brain;
 @synthesize history = _history;
-@synthesize varDisplay = _varDisplay;
 @synthesize  variables = _variables;
 
 - (CalculatorBrain *)brain
@@ -65,7 +62,7 @@
     {
         self.display.text = [self.display.text substringToIndex:[self.display.text length] - 1];
           
-        // If the user deleted everything from the display...
+        // If the user deleted everything from the display, we're no longer entering a number.
         if (([self.display.text length] == 0) || [self.display.text isEqualToString:@"-"])
         {
             self.enteringNum = NO;
@@ -152,7 +149,6 @@
     self.history.text = @"";
     self.display.text = @"0";
     self.variables = nil;
-    self.varDisplay.text = @"";
 }
 
 - (IBAction)variablePressed:(UIButton *)sender 
@@ -160,55 +156,48 @@
     if (!self.enteringNum)
     {
         NSString* button = [sender currentTitle];
-        
-        // If there is a value stored for the button that was pressed...
-        if ([self.variables objectForKey:button])
-        {
-            // Push the variable to the program and update the history display.
-            [self.brain pushVariable:button];
-            self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
-        }
-        // Else there wasn't a value stored for the variable...
-        else 
-        {
-            // Use the current top of the stack as the value.
-            NSNumber* value = [[NSNumber alloc] initWithDouble:[self.display.text doubleValue]];
-            [self.variables setObject:value forKey:button];
-            [self updateVariableDisplay:[self.variables copy]];
-        }
+        [self.brain pushVariable:button];
+        self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
     }
 }
 
-- (IBAction)insertTestVars:(UIButton *)sender 
+- (IBAction)graphPressed 
 {
-    NSString* text = [sender currentTitle];
-    
-    if ([text isEqualToString:@"Test Vars 1"])
+    // Check that we're in an iPad split view and that the slave controller is a GraphViewController
+    GraphViewController* graphController = [self.splitViewController.viewControllers lastObject];
+    if (graphController)
     {
-        NSDictionary* tmp = [NSDictionary dictionaryWithObjectsAndKeys:[[NSNumber alloc] initWithInt:5], @"x", [[NSNumber alloc] initWithDouble:10.5], @"y", nil];
-        self.variables = [tmp mutableCopy];
+        graphController.calculatorBrainDelegate = self;
+        [graphController setFunction:self.brain.program];
     }
-    else // Test Vars 2 pressed
-    {
-        // Just setting this to nil for testing purposes per homework instructions.
-        self.variables = nil;
-    }
-    
-    // Update the UI after changing the variable values.
-    [self updateVariableDisplay:self.variables];
-    double result = [[self.brain class] runProgram:self.brain.program usingVariableValues:self.variables];
-    self.display.text = [@"" stringByAppendingFormat:@"%g", result];
-    self.history.text = [[self.brain class] descriptionOfProgram:self.brain.program];
-
 }
 
-- (void)updateVariableDisplay:(NSDictionary *)variables
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
 {
-    self.varDisplay.text = @"";
-    
-    for (id obj in [variables allKeys])
+    if ([segue.identifier isEqualToString:@"graphingSegue"])
     {
-        self.varDisplay.text = [self.varDisplay.text stringByAppendingFormat:@"%@ = %@ ", obj, [variables objectForKey:obj]];
+        GraphViewController* tmp = segue.destinationViewController;
+        [tmp setFunction:self.brain.program];
+        tmp.calculatorBrainDelegate = self;
     }
+}
+
+// Delegate functions for GraphViewControllerBrainDelegate
+- (double)runProgramForPoint:(NSArray *)program withXValue:(double)xValue
+{    
+    NSNumber* numberValue = [[NSNumber alloc] initWithDouble:xValue];
+    NSDictionary* values = [NSDictionary dictionaryWithObjectsAndKeys:numberValue, @"x", nil];
+    double result = [[self.brain class] runProgram:program usingVariableValues:values];
+    return result;
+}
+
+- (NSString *)getFunctionPrintout:(NSArray *)function
+{    
+    return [[self.brain class] descriptionOfProgram:function];
+} 
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation
+{
+    return YES;
 }
 @end

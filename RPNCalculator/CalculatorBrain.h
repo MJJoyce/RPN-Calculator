@@ -26,7 +26,6 @@
 
 + (double)popOperand:(NSMutableArray *)stack;
 + (NSString *)descriptionOfProgram:(id)program;
-+ (NSSet *)variablesUsedInProgram:(id)program;
 + (double)runProgram:(id)program;
 + (double)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues;
 
